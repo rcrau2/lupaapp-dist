@@ -1,0 +1,5 @@
+pillow>=10.0.0
+mss>=9.0.0
+pynput>=1.7.6
+pystray>=0.19.5
+pywin32>=306

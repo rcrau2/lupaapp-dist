@@ -1,0 +1,10 @@
+app/
+requirements.txt
+build.bat
+*.spec
+*.log
+*.pyc
+__pycache__/
+dist/
+.git/
+.venv/

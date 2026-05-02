@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lupa de Pantalla – Descarga</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #1e1e2e;
+      --surface: #313244;
+      --border:  #45475a;
+      --fg:      #cdd6f4;
+      --muted:   #a6adc8;
+      --accent:  #89b4fa;
+      --green:   #a6e3a1;
+      --yellow:  #f9e2af;
+      --red:     #f38ba8;
+      --teal:    #89dceb;
+    }
+
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* ── header ── */
+    .logo { font-size: 4rem; margin-bottom: 8px; }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+    }
+    .subtitle {
+      color: var(--muted);
+      margin-top: 6px;
+      font-size: 1rem;
+    }
+
+    /* ── card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px 36px;
+      max-width: 680px;
+      width: 100%;
+      margin-top: 36px;
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── feature grid ── */
+    .features {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    @media (max-width: 480px) { .features { grid-template-columns: 1fr; } }
+
+    .feature {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .feature .icon { font-size: 1.4rem; flex-shrink: 0; }
+    .feature strong { font-size: 0.9rem; color: var(--fg); display: block; }
+    .feature span   { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── controls table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      margin-top: 8px;
+    }
+    th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 600;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+
+    kbd {
+      display: inline-block;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-family: "Consolas", monospace;
+      font-size: 0.82rem;
+      color: var(--teal);
+    }
+    .arrow { color: var(--muted); }
+
+    /* ── download button ── */
+    .dl-wrap { text-align: center; margin-top: 20px; }
+    .dl-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--accent);
+      color: #1e1e2e;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 14px 36px;
+      border-radius: 12px;
+      text-decoration: none;
+      transition: opacity .15s, transform .15s;
+    }
+    .dl-btn:hover { opacity: .88; transform: translateY(-2px); }
+    .dl-btn svg { width: 22px; height: 22px; fill: currentColor; }
+    .dl-note {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    /* ── steps ── */
+    ol { padding-left: 22px; }
+    ol li {
+      margin: 8px 0;
+      font-size: 0.9rem;
+      color: var(--fg);
+      line-height: 1.5;
+    }
+    ol li code {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: Consolas, monospace;
+      font-size: 0.85em;
+      color: var(--yellow);
+    }
+
+    footer {
+      margin-top: 48px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="logo">🔍</div>
+  <h1>Lupa de Pantalla</h1>
+  <p class="subtitle">Magnificador de pantalla con zoom, brillo y contraste ajustables</p>
+
+  <!-- Features -->
+  <div class="card">
+    <h2>✨ Características</h2>
+    <div class="features">
+      <div class="feature">
+        <span class="icon">🎯</span>
+        <div>
+          <strong>Atajo configurable</strong>
+          <span>Define tu propia combinación de 3 teclas para activar la lupa</span>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="icon">🔎</span>
+        <div>
+          <strong>Zoom 1.5× – 10×</strong>
+          <span>Amplía cualquier zona de la pantalla en tiempo real</span>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="icon">☀️</span>
+        <div>
+          <strong>Brillo ajustable</strong>
+          <span>Claridad extra en contenido oscuro o en entornos con poca luz</span>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="icon">🎨</span>
+        <div>
+          <strong>Contraste ajustable</strong>
+          <span>Mejora la legibilidad de texto fino o imágenes con poco contraste</span>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="icon">🖥️</span>
+        <div>
+          <strong>Segundo plano</strong>
+          <span>Se minimiza en la bandeja del sistema; no interrumpe tu flujo</span>
+        </div>
+      </div>
+      <div class="feature">
+        <span class="icon">🖱️</span>
+        <div>
+          <strong>Click-through</strong>
+          <span>La lupa no interfiere con clics ni atajos del sistema</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controls -->
+  <div class="card" style="margin-top:16px">
+    <h2>⌨️ Controles mientras la lupa está activa</h2>
+    <table>
+      <thead>
+        <tr><th>Acción</th><th>Control</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Activar / desactivar lupa</td>
+          <td><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd> <span class="arrow">(predeterminado, configurable)</span></td>
+        </tr>
+        <tr>
+          <td>Zoom  +  /  −</td>
+          <td><kbd>Rueda ↑↓</kbd></td>
+        </tr>
+        <tr>
+          <td>Brillo  +  /  −</td>
+          <td><kbd>Ctrl</kbd> + <kbd>Rueda ↑↓</kbd></td>
+        </tr>
+        <tr>
+          <td>Contraste  +  /  −</td>
+          <td><kbd>Shift</kbd> + <kbd>Rueda ↑↓</kbd></td>
+        </tr>
+        <tr>
+          <td>Abrir configuración</td>
+          <td>Click derecho en el ícono de la bandeja → <em>Configuración…</em></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Download -->
+  <div class="card" style="margin-top:16px">
+    <h2>⬇️ Descarga e instalación</h2>
+    <div class="dl-wrap">
+      <a class="dl-btn" href="/dist/LupaApp.exe" download>
+        <svg viewBox="0 0 24 24"><path d="M5 20h14v-2H5m14-9h-4V3H9v6H5l7 7 7-7z"/></svg>
+        Descargar LupaApp.exe
+      </a>
+      <p class="dl-note">Windows 10 / 11 · 64-bit · ~27 MB · sin instalador</p>
+    </div>
+
+    <br/>
+
+    <!-- Chrome warning notice -->
+    <div style="background:var(--bg);border:1px solid var(--yellow);border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+      <p style="font-size:0.85rem;color:var(--yellow);font-weight:600;margin-bottom:8px;">⚠️ Chrome bloquea la descarga — sigue estos 2 pasos:</p>
+      <ol style="padding-left:18px;margin:0;">
+        <li style="font-size:0.84rem;color:var(--fg);margin:5px 0;">En la barra de descargas de Chrome haz clic en el ícono <strong>▶</strong> junto al archivo → selecciona <strong>"Descargar archivo sospechoso"</strong>.</li>
+        <li style="font-size:0.84rem;color:var(--fg);margin:5px 0;">Al ejecutarlo, Windows mostrará "Windows protegió su PC" → haz clic en <strong>"Más información"</strong> → <strong>"Ejecutar de todas formas"</strong>.</li>
+      </ol>
+      <p style="font-size:0.78rem;color:var(--muted);margin-top:8px;">Estas advertencias aparecen porque el ejecutable no tiene firma digital de pago. El archivo es seguro.</p>
+    </div>
+
+    <ol>
+      <li>Descarga <code>LupaApp.exe</code> con los pasos de arriba y guárdalo donde prefieras.</li>
+      <li>Aparecerá un ícono 🔍 en la bandeja del sistema (esquina inferior derecha).</li>
+      <li>Presiona <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>M</kbd> para activar la lupa circular.</li>
+      <li>Con la lupa activa: <kbd>Rueda</kbd> ajusta zoom · <kbd>Ctrl</kbd>+<kbd>Rueda</kbd> brillo · <kbd>Shift</kbd>+<kbd>Rueda</kbd> contraste.</li>
+      <li><em>Opcional:</em> Clic derecho en el ícono → <em>Configuración…</em> para cambiar el atajo o los valores por defecto.</li>
+    </ol>
+  </div>
+
+  <footer>
+    Lupa de Pantalla &mdash; Aplicación de escritorio para Windows
+  </footer>
+
+</body>
+</html>
