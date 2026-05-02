@@ -1,13 +1,6 @@
 services:
-  lupa-web:
-    build: .
-    container_name: lupa-pantalla
-    restart: unless-stopped
-    volumes:
-      - ./web/dist:/usr/share/nginx/html/dist
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  lupa-web:
+    build: .
+    restart: unless-stopped
+    volumes:
+      - ./web/dist:/usr/share/nginx/html/dist
