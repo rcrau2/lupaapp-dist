@@ -91,30 +91,36 @@ class LupaApp:
             return None
 
         def on_press(key):
-            if key in _CTRL: self._ctrl_held = True
-            elif key in _SHIFT: self._shift_held = True
-            
-            k_name = get_key_name(key)
-            if k_name:
-                self._pressed_keys.add(k_name)
+            try:
+                if key in _CTRL: self._ctrl_held = True
+                elif key in _SHIFT: self._shift_held = True
                 
-            hk = set(self.config.get("hotkey", ["q", "w", "e"]))
-            if hk.issubset(self._pressed_keys):
-                if not self._hotkey_triggered:
-                    self._hotkey_triggered = True
-                    on_activate()
+                k_name = get_key_name(key)
+                if k_name:
+                    self._pressed_keys.add(k_name)
+                    
+                hk = set(str(k).lower() for k in self.config.get("hotkey", ["q", "w", "e"]))
+                if hk and hk.issubset(self._pressed_keys):
+                    if not self._hotkey_triggered:
+                        self._hotkey_triggered = True
+                        on_activate()
+            except Exception as e:
+                pass
 
         def on_release(key):
-            if key in _CTRL: self._ctrl_held = False
-            elif key in _SHIFT: self._shift_held = False
-            
-            k_name = get_key_name(key)
-            if k_name and k_name in self._pressed_keys:
-                self._pressed_keys.remove(k_name)
+            try:
+                if key in _CTRL: self._ctrl_held = False
+                elif key in _SHIFT: self._shift_held = False
                 
-            hk = set(self.config.get("hotkey", ["q", "w", "e"]))
-            if not hk.issubset(self._pressed_keys):
-                self._hotkey_triggered = False
+                k_name = get_key_name(key)
+                if k_name and k_name in self._pressed_keys:
+                    self._pressed_keys.remove(k_name)
+                    
+                hk = set(str(k).lower() for k in self.config.get("hotkey", ["q", "w", "e"]))
+                if not hk.issubset(self._pressed_keys):
+                    self._hotkey_triggered = False
+            except Exception as e:
+                pass
 
         self._kb = keyboard.Listener(
             on_press=on_press, on_release=on_release, daemon=True)
