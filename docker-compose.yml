@@ -1,16 +1,16 @@
 services:
   lupa-web:
-    build: .
-    container_name: lupa-pantalla
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      # Mount dist/ as a volume so you can update LupaApp.exe
-      # without rebuilding the image (just copy the new .exe here).
-      - ./web/dist:/usr/share/nginx/html/dist
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost/"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
+      build: .
+          container_name: lupa-pantalla
+              restart: unless-stopped
+                  volumes:
+                        # Mount dist/ as a volume so you can update LupaApp.exe
+                              # without rebuilding the image (just copy the new .exe here).
+                                    - ./web/dist:/usr/share/nginx/html/dist
+                                        healthcheck:
+                                              test: ["CMD", "curl", "-f", "http://localhost/"]
+                                                    interval: 30s
+                                                          timeout: 10s
+                                                                retries: 3
+                                                                      start_period: 10s
+                                                                      
