@@ -26,59 +26,120 @@ sys.path.insert(0, _BASE)
 from magnifier import MagnifierOverlay          # noqa: E402
 from settings import load_config, save_config, SettingsDialog  # noqa: E402
 
-class FloatingButton:
-    def __init__(self, root, toggle_callback):
-        self.root = root
+class FloatingDashboard:
+    def __init__(self, app, toggle_callback):
+        self.app = app
+        self.root = app.root
         self.toggle_callback = toggle_callback
         
-        self.win = tk.Toplevel(root)
+        self.win = tk.Toplevel(self.root)
         self.win.overrideredirect(True)
         self.win.attributes('-topmost', True)
-        self.win.attributes('-alpha', 0.6)
+        self.win.attributes('-alpha', 0.8)
+        self.win.configure(bg="#1a1a24")
         
-        # Make the background fully transparent using a chroma key (magenta)
-        self.win.attributes('-transparentcolor', 'magenta')
+        # Dimensions
+        self.w = 65
+        self.h = 420
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        self.win.geometry(f"{self.w}x{self.h}+{screen_width - self.w - 20}+{screen_height//2 - self.h//2}")
         
-        size = 65
-        self.win.geometry(f"{size}x{size}+0+0")
+        self.canvas = tk.Canvas(self.win, width=self.w, height=self.h, bg="#1a1a24", highlightthickness=2, highlightbackground="#00ffcc")
+        self.canvas.pack(fill="both", expand=True)
         
-        self.canvas = tk.Canvas(self.win, width=size, height=size, bg="magenta", highlightthickness=0)
-        self.canvas.pack()
-        
-        # Draw a sleek glass-like circle
-        self.bg_oval = self.canvas.create_oval(5, 5, size-5, size-5, fill="#1a1a24", outline="#00ffcc", width=2)
-        
-        # Draw the magnifier icon
-        self.canvas.create_oval(22, 22, 38, 38, outline="#00ffcc", width=3)
-        self.canvas.create_line(36, 36, 48, 48, fill="#00ffcc", width=4, capstyle=tk.ROUND)
+        # Draw Magnifier icon at top (toggle button)
+        self.canvas.create_oval(15, 15, 50, 50, fill="#2a2a35", outline="#00ffcc", width=2)
+        self.canvas.create_oval(25, 25, 37, 37, outline="#00ffcc", width=2)
+        self.canvas.create_line(35, 35, 43, 43, fill="#00ffcc", width=3, capstyle=tk.ROUND)
+        self.canvas.create_text(32, 65, text="ON/OFF", fill="#00ffcc", font=("Segoe UI", 7, "bold"))
+
+        # Sliders properties
+        self.sliders = []
+        self._add_slider(85, "ZOOM", 8.0, 1.5, self.app.config.get("zoom", 2.0), self._on_zoom)
+        self._add_slider(195, "BRILLO", 3.0, 0.2, self.app.config.get("brightness", 1.0), self._on_bri)
+        self._add_slider(305, "CONTRASTE", 3.0, 0.2, self.app.config.get("contrast", 1.0), self._on_con)
         
         self.canvas.bind("<ButtonPress-1>", self._on_press)
-        self.canvas.bind("<ButtonRelease-1>", self._on_release)
         self.canvas.bind("<B1-Motion>", self._on_drag)
         self.canvas.bind("<Enter>", lambda e: self.win.attributes('-alpha', 1.0))
-        self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.6))
+        self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.8))
         
-        self._drag_data = {"x": 0, "y": 0, "dragged": False}
+        self._drag_data = {"x": 0, "y": 0, "active_slider": None, "moved": False}
         
-        # Position at the right edge, vertically centered
-        screen_width = root.winfo_screenwidth()
-        screen_height = root.winfo_screenheight()
-        self.win.geometry(f"+{screen_width - size - 20}+{screen_height//2 - size//2}")
+    def _add_slider(self, y, label, max_val, min_val, current_val, callback):
+        # Draw rail
+        self.canvas.create_text(32, y, text=label, fill="#89dceb", font=("Segoe UI", 7, "bold"))
+        rail = self.canvas.create_rectangle(28, y+15, 36, y+95, fill="#333", outline="")
+        fill = self.canvas.create_rectangle(28, y+15, 36, y+95, fill="#00ffcc", outline="")
+        
+        slider = {
+            "y": y+15,
+            "h": 80,
+            "min": min_val,
+            "max": max_val,
+            "val": current_val,
+            "cb": callback,
+            "fill": fill
+        }
+        self.sliders.append(slider)
+        self._update_slider_visual(slider)
+
+    def _update_slider_visual(self, slider):
+        pct = (slider["val"] - slider["min"]) / (slider["max"] - slider["min"])
+        fill_h = slider["h"] * pct
+        # Invert so max is at top
+        self.canvas.coords(slider["fill"], 28, slider["y"] + slider["h"] - fill_h, 36, slider["y"] + slider["h"])
+
+    def _on_zoom(self, val):
+        self.app.magnifier.set_zoom(val)
+    def _on_bri(self, val):
+        self.app.magnifier.set_brightness(val)
+    def _on_con(self, val):
+        self.app.magnifier.set_contrast(val)
 
     def _on_press(self, event):
         self._drag_data["x"] = event.x
         self._drag_data["y"] = event.y
-        self._drag_data["dragged"] = False
+        self._drag_data["moved"] = False
+        self._drag_data["active_slider"] = None
+        
+        if event.y < 70:
+            # Clicked power button area
+            self.toggle_callback()
+            return
+            
+        # Check sliders
+        for s in self.sliders:
+            if s["y"] - 10 <= event.y <= s["y"] + s["h"] + 10:
+                self._drag_data["active_slider"] = s
+                self._handle_slider_drag(s, event.y)
+                return
 
     def _on_drag(self, event):
-        self._drag_data["dragged"] = True
-        x = self.win.winfo_x() - self._drag_data["x"] + event.x
-        y = self.win.winfo_y() - self._drag_data["y"] + event.y
-        self.win.geometry(f"+{x}+{y}")
+        s = self._drag_data["active_slider"]
+        if s:
+            self._handle_slider_drag(s, event.y)
+        else:
+            self._drag_data["moved"] = True
+            # Move window
+            x = self.win.winfo_x() - self._drag_data["x"] + event.x
+            y = self.win.winfo_y() - self._drag_data["y"] + event.y
+            self.win.geometry(f"+{x}+{y}")
 
-    def _on_release(self, event):
-        if not self._drag_data["dragged"]:
-            self.toggle_callback()
+    def _handle_slider_drag(self, s, my):
+        # Clamp to slider bounds
+        my = max(s["y"], min(my, s["y"] + s["h"]))
+        # Calculate percentage (inverted because Y increases downwards)
+        pct = 1.0 - ((my - s["y"]) / s["h"])
+        s["val"] = s["min"] + pct * (s["max"] - s["min"])
+        self._update_slider_visual(s)
+        s["cb"](s["val"])
+        
+    def is_hovered(self, mx, my):
+        x = self.win.winfo_x()
+        y = self.win.winfo_y()
+        return x <= mx <= x + self.w and y <= my <= y + self.h
 
 # ── Main application ──────────────────────────────────────────────────────────
 
@@ -96,15 +157,15 @@ class LupaApp:
         self.root.withdraw()
         self.root.title("LupaApp")
 
-        self.magnifier = MagnifierOverlay(self.root, self.config)
+        self.magnifier = MagnifierOverlay(self.root, self.config, self)
 
-        # Create the magical infallible floating button
-        self.floating_btn = FloatingButton(self.root, self.magnifier.toggle)
+        # Create the magical infallible floating dashboard
+        self.floating_dashboard = FloatingDashboard(self, self.magnifier.toggle)
 
         self._start_mouse_listener()
         self._start_tray()
 
-    # ── mouse scroll listener ─────────────────────────────────────
+    # ── mouse listener ────────────────────────────────────────────
 
     def _start_mouse_listener(self):
         def on_scroll(x, y, dx, dy):
@@ -176,8 +237,8 @@ class LupaApp:
 
     def _quit(self):
         self.magnifier.destroy()
-        if hasattr(self, 'floating_btn'):
-            self.floating_btn.win.destroy()
+        if hasattr(self, 'floating_dashboard'):
+            self.floating_dashboard.win.destroy()
         try:
             self._tray.stop()
         except Exception:

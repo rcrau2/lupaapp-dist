@@ -125,11 +125,12 @@ class SettingsDialog:
         ).pack(side="left")
 
     def _build_controls_hint(self):
-        frame = self._lframe("Controles mientras la lupa está activa")
+        frame = self._lframe("Nuevos Controles de la Lupa")
         lines = (
-            "Rueda del ratón          →  Zoom  (+/-)\n"
-            "Ctrl  +  Rueda           →  Brillo  (+/-)\n"
-            "Shift  +  Rueda          →  Contraste  (+/-)"
+            "La lupa está exactamente centrada en tu ratón.\n"
+            "Para cambiar el Zoom, Brillo o Contraste:\n"
+            "Usa el Panel de Control Flotante en tu pantalla.\n"
+            "¡La lupa se ocultará sola para que puedas usarlo!"
         )
         tk.Label(frame, text=lines, font=("Consolas", 9), bg=BG, fg="#89dceb",
                  justify="left").pack(padx=12, pady=8)

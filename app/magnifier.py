@@ -20,12 +20,13 @@ _HUD_DURATION = 1.5   # seconds to show the HUD label
 
 
 class MagnifierOverlay:
-    def __init__(self, root, config):
+    def __init__(self, root, config, app=None):
         self.root = root
         self.config = config
+        self.app = app
+        
         self.active = False
-
-        self._after_id = None
+        self._sct = mss.mss()
         self._win = None
         self._canvas = None
         self._photo = None        # must stay alive (ImageTk GC)
@@ -33,18 +34,42 @@ class MagnifierOverlay:
 
         self._hud_text = ""
         self._hud_until = 0.0
+        self._frozen_screen = None
+        self._screen_width = 0
+        self._screen_height = 0
 
     # ── public API ────────────────────────────────────────────────
 
     def show(self):
+        # 1. Capture the ENTIRE SCREEN before showing the window
+        sw = self.root.winfo_screenwidth()
+        sh = self.root.winfo_screenheight()
+        raw = self._sct.grab({"left": 0, "top": 0, "width": sw, "height": sh})
+        self._frozen_screen = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+        self._screen_width = sw
+        self._screen_height = sh
+
         if not self._win:
             self._build_window()
         self.active = True
         self._win.deiconify()
+        
+        # Start keyboard listener for Escape key
+        from pynput import keyboard
+        def on_release(key):
+            if key == keyboard.Key.esc:
+                self.root.after(0, self.app.floating_dashboard.toggle_callback)
+        self._esc_listener = keyboard.Listener(on_release=on_release)
+        self._esc_listener.start()
+        
         self._loop()
 
     def hide(self):
         self.active = False
+        self._frozen_screen = None
+        if hasattr(self, '_esc_listener') and self._esc_listener:
+            self._esc_listener.stop()
+            self._esc_listener = None
         if self._after_id:
             self.root.after_cancel(self._after_id)
             self._after_id = None
@@ -154,14 +179,25 @@ class MagnifierOverlay:
             my = self._win.winfo_pointery()
             sw = self._win.winfo_screenwidth()
             sh = self._win.winfo_screenheight()
+            
+            # Smart hide if hovering over the dashboard
+            if self.app and hasattr(self.app, 'floating_dashboard'):
+                if self.app.floating_dashboard.is_hovered(mx, my):
+                    self._win.attributes('-alpha', 0.0)
+                    return
+                else:
+                    self._win.attributes('-alpha', 1.0)
 
             # Region to capture (clamp to screen bounds)
             cap = max(4, int(size / zoom))
             x1 = max(0, min(sw - cap, mx - cap // 2))
             y1 = max(0, min(sh - cap, my - cap // 2))
 
-            raw = self._sct.grab({"left": x1, "top": y1, "width": cap, "height": cap})
-            img = Image.frombytes("RGB", raw.size, raw.bgra, "raw", "BGRX")
+            if self._frozen_screen:
+                img = self._frozen_screen.crop((x1, y1, x1 + cap, y1 + cap))
+            else:
+                img = Image.new("RGB", (cap, cap), "black")
+                
             img = img.resize((size, size), Image.LANCZOS)
 
             if bri != 1.0:
@@ -178,15 +214,13 @@ class MagnifierOverlay:
             flat = Image.new("RGB", (size, size), _TRANSPARENT_RGB)
             flat.paste(img, mask=img.split()[3])
 
-            # Position the window offset from the cursor
-            off = size // 2 + 12
-            wx = mx + off
-            wy = my + off
-            if wx + size > sw:
-                wx = mx - off - size
-            if wy + size > sh:
-                wy = my - off - size
-
+            # Center the window exactly on the cursor
+            wx = mx - size // 2
+            wy = my - size // 2
+            
+            # Keep within screen bounds slightly so it doesn't clip out completely if not needed, 
+            # actually it's better to let it perfectly center even if it goes off-screen edge.
+            
             self._win.geometry(f"{size}x{size}+{wx}+{wy}")
             self._photo = ImageTk.PhotoImage(flat)
             self._canvas.configure(width=size, height=size)
