@@ -93,31 +93,11 @@ class SettingsDialog:
         return f
 
     def _build_hotkey_section(self):
-        frame = self._lframe("Atajo de teclado  (3 teclas)")
-        row = tk.Frame(frame, bg=BG)
-        row.pack(padx=12, pady=10)
-
-        hk = self._cfg.get("hotkey", ["q", "w", "e"])
-
-        def combo(values, default, col):
-            tk.Label(row, text=f"Tecla {col+1}:", bg=BG, fg=FG,
-                     font=("Segoe UI", 9)).grid(row=0, column=col * 2, padx=(0, 4))
-            cb = ttk.Combobox(row, values=values, width=6, state="readonly")
-            cb.set(default)
-            cb.grid(row=0, column=col * 2 + 1, padx=(0, 10))
-            return cb
-
-        self._key1 = combo(ALL_KEYS, hk[0] if len(hk) > 0 else "q", 0)
-        self._key2 = combo(ALL_KEYS, hk[1] if len(hk) > 1 else "w", 1)
-        self._key3 = combo(ALL_KEYS, hk[2] if len(hk) > 2 else "e", 2)
-
-        tk.Label(
-            frame,
-            text="Puede ser cualquier combinación de teclas y modificadores.",
-            font=("Segoe UI", 8),
-            bg=BG,
-            fg=MUTED,
-        ).pack(pady=(0, 8))
+        frame = self._lframe("Activación de la lupa")
+        
+        desc = tk.Label(frame, text="1. Haz clic en el Botón Flotante Mágico en la pantalla.\n2. Haz doble clic en el ícono de la lupa junto al reloj.",
+                        bg=BG, fg=FG, font=("Segoe UI", 9), justify="left")
+        desc.pack(anchor="w", padx=10, pady=10)
 
     def _build_sliders_section(self):
         frame = self._lframe("Valores por defecto")
@@ -167,16 +147,7 @@ class SettingsDialog:
     # ── save ──────────────────────────────────────────────────────
 
     def _save(self):
-        k1, k2, k3 = self._key1.get(), self._key2.get(), self._key3.get()
-        if len(set([k1, k2, k3])) < 3:
-            messagebox.showerror(
-                "Error de configuración",
-                "Las tres teclas deben ser distintas.",
-                parent=self.win,
-            )
-            return
         self.result = {
-            "hotkey": [k1, k2, k3],
             "zoom": round(float(self._zoom_var.get()), 2),
             "brightness": round(float(self._bri_var.get()), 2),
             "contrast": round(float(self._con_var.get()), 2),

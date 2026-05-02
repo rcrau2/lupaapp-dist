@@ -6,13 +6,14 @@ import os
 import sys
 import ctypes
 import ctypes.wintypes
-import threading
 import tkinter as tk
+from tkinter import ttk
 from PIL import Image, ImageDraw
 
 import pystray
 from pystray import MenuItem as Item, Menu
-from pynput import keyboard, mouse
+from pynput import mouse
+import threading
 
 # Ensure the app directory is on the path when running frozen (PyInstaller)
 _BASE = (
@@ -25,11 +26,59 @@ sys.path.insert(0, _BASE)
 from magnifier import MagnifierOverlay          # noqa: E402
 from settings import load_config, save_config, SettingsDialog  # noqa: E402
 
+class FloatingButton:
+    def __init__(self, root, toggle_callback):
+        self.root = root
+        self.toggle_callback = toggle_callback
+        
+        self.win = tk.Toplevel(root)
+        self.win.overrideredirect(True)
+        self.win.attributes('-topmost', True)
+        self.win.attributes('-alpha', 0.6)
+        
+        # Make the background fully transparent using a chroma key (magenta)
+        self.win.attributes('-transparentcolor', 'magenta')
+        
+        size = 65
+        self.win.geometry(f"{size}x{size}+0+0")
+        
+        self.canvas = tk.Canvas(self.win, width=size, height=size, bg="magenta", highlightthickness=0)
+        self.canvas.pack()
+        
+        # Draw a sleek glass-like circle
+        self.bg_oval = self.canvas.create_oval(5, 5, size-5, size-5, fill="#1a1a24", outline="#00ffcc", width=2)
+        
+        # Draw the magnifier icon
+        self.canvas.create_oval(22, 22, 38, 38, outline="#00ffcc", width=3)
+        self.canvas.create_line(36, 36, 48, 48, fill="#00ffcc", width=4, capstyle=tk.ROUND)
+        
+        self.canvas.bind("<ButtonPress-1>", self._on_press)
+        self.canvas.bind("<ButtonRelease-1>", self._on_release)
+        self.canvas.bind("<B1-Motion>", self._on_drag)
+        self.canvas.bind("<Enter>", lambda e: self.win.attributes('-alpha', 1.0))
+        self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.6))
+        
+        self._drag_data = {"x": 0, "y": 0, "dragged": False}
+        
+        # Position at the right edge, vertically centered
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        self.win.geometry(f"+{screen_width - size - 20}+{screen_height//2 - size//2}")
 
-# ── Windows RegisterHotKey helper ─────────────────────────────────────────────
-# Removed _WinHotkey because RegisterHotKey doesn't support combinations like q+w+e
+    def _on_press(self, event):
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+        self._drag_data["dragged"] = False
 
+    def _on_drag(self, event):
+        self._drag_data["dragged"] = True
+        x = self.win.winfo_x() - self._drag_data["x"] + event.x
+        y = self.win.winfo_y() - self._drag_data["y"] + event.y
+        self.win.geometry(f"+{x}+{y}")
 
+    def _on_release(self, event):
+        if not self._drag_data["dragged"]:
+            self.toggle_callback()
 
 # ── Main application ──────────────────────────────────────────────────────────
 
@@ -49,69 +98,11 @@ class LupaApp:
 
         self.magnifier = MagnifierOverlay(self.root, self.config)
 
-        # Start background polling
-        self._polling_active = True
-        self._start_kb_listener()
+        # Create the magical infallible floating button
+        self.floating_btn = FloatingButton(self.root, self.magnifier.toggle)
 
-        self._start_kb_listener()
         self._start_mouse_listener()
         self._start_tray()
-        self._keep_alive()
-
-    def _keep_alive(self):
-        # Wakes up the Tkinter event loop periodically to process events 
-        # queued from background threads (like hotkey triggers).
-        self.root.after(50, self._keep_alive)
-
-    # ── keyboard / hotkey ─────────────────────────────────────────
-
-    def _start_kb_listener(self):
-        # We replace pynput with a rock-solid background polling loop using GetAsyncKeyState.
-        # This completely bypasses hook timeouts and guarantees arbitrary key combinations.
-        threading.Thread(target=self._poll_hotkey, daemon=True).start()
-
-    def _poll_hotkey(self):
-        import time
-        import ctypes
-        
-        VK_MAP = {
-            "ctrl": 0x11,
-            "shift": 0x10,
-            "alt": 0x12,
-        }
-        
-        def get_vk(key_str):
-            k = str(key_str).lower()
-            if k in VK_MAP:
-                return VK_MAP[k]
-            if len(k) == 1:
-                return ord(k.upper())
-            return None
-
-        triggered = False
-        while getattr(self, '_polling_active', True):
-            time.sleep(0.05)  # 50ms polling loop (20 checks per sec)
-            
-            hk = self.config.get("hotkey", ["q", "w", "e"])
-            vks = [get_vk(k) for k in hk if k]
-            vks = [vk for vk in vks if vk is not None]
-            
-            if not vks:
-                continue
-                
-            all_pressed = True
-            for vk in vks:
-                state = ctypes.windll.user32.GetAsyncKeyState(vk)
-                if not (state & 0x8000):
-                    all_pressed = False
-                    break
-                    
-            if all_pressed:
-                if not triggered:
-                    triggered = True
-                    self.root.after(0, self.magnifier.toggle)
-            else:
-                triggered = False
 
     # ── mouse scroll listener ─────────────────────────────────────
 
@@ -151,10 +142,8 @@ class LupaApp:
         return img
 
     def _start_tray(self):
-        combo = "+".join(k.upper() for k in self.config.get("hotkey", ["q", "w", "e"]))
-
         menu = Menu(
-            Item(f"Alternar lupa  ({combo})", self._tray_toggle, default=True),
+            Item("Alternar lupa (Boton Flotante)", self._tray_toggle, default=True),
             Item("Configuración…",            self._tray_settings),
             Menu.SEPARATOR,
             Item("Salir",                     self._tray_quit),
@@ -186,8 +175,9 @@ class LupaApp:
     # ── quit ──────────────────────────────────────────────────────
 
     def _quit(self):
-        self._polling_active = False
         self.magnifier.destroy()
+        if hasattr(self, 'floating_btn'):
+            self.floating_btn.win.destroy()
         try:
             self._tray.stop()
         except Exception:
