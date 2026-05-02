@@ -49,10 +49,9 @@ class LupaApp:
 
         self.magnifier = MagnifierOverlay(self.root, self.config)
 
-        # Modifier-key state tracked for scroll-event routing
-        self._ctrl_held  = False
-        self._shift_held = False
-        self._kb         = None   # pynput Listener
+        # Start background polling
+        self._polling_active = True
+        self._start_kb_listener()
 
         self._start_kb_listener()
         self._start_mouse_listener()
@@ -67,64 +66,52 @@ class LupaApp:
     # ── keyboard / hotkey ─────────────────────────────────────────
 
     def _start_kb_listener(self):
-        def on_activate():
-            print("Hotkey triggered! Toggling magnifier...", flush=True)
-            # Called from background thread – schedule on tk main loop
-            self.root.after(0, self.magnifier.toggle)
+        # We replace pynput with a rock-solid background polling loop using GetAsyncKeyState.
+        # This completely bypasses hook timeouts and guarantees arbitrary key combinations.
+        threading.Thread(target=self._poll_hotkey, daemon=True).start()
 
-        _CTRL  = {keyboard.Key.ctrl, keyboard.Key.ctrl_l, keyboard.Key.ctrl_r}
-        _SHIFT = {keyboard.Key.shift, keyboard.Key.shift_l, keyboard.Key.shift_r}
-        _ALT   = {keyboard.Key.alt, keyboard.Key.alt_l, keyboard.Key.alt_r, keyboard.Key.alt_gr}
-
-        self._pressed_keys = set()
-        self._hotkey_triggered = False
-
-        def get_key_name(key):
-            if key in _CTRL: return "ctrl"
-            if key in _SHIFT: return "shift"
-            if key in _ALT: return "alt"
-            if hasattr(key, 'char') and key.char:
-                return key.char.lower()
-            if hasattr(key, 'vk') and key.vk:
-                if 32 <= key.vk <= 126:
-                    return chr(key.vk).lower()
+    def _poll_hotkey(self):
+        import time
+        import ctypes
+        
+        VK_MAP = {
+            "ctrl": 0x11,
+            "shift": 0x10,
+            "alt": 0x12,
+        }
+        
+        def get_vk(key_str):
+            k = str(key_str).lower()
+            if k in VK_MAP:
+                return VK_MAP[k]
+            if len(k) == 1:
+                return ord(k.upper())
             return None
 
-        def on_press(key):
-            try:
-                if key in _CTRL: self._ctrl_held = True
-                elif key in _SHIFT: self._shift_held = True
+        triggered = False
+        while getattr(self, '_polling_active', True):
+            time.sleep(0.05)  # 50ms polling loop (20 checks per sec)
+            
+            hk = self.config.get("hotkey", ["q", "w", "e"])
+            vks = [get_vk(k) for k in hk if k]
+            vks = [vk for vk in vks if vk is not None]
+            
+            if not vks:
+                continue
                 
-                k_name = get_key_name(key)
-                if k_name:
-                    self._pressed_keys.add(k_name)
+            all_pressed = True
+            for vk in vks:
+                state = ctypes.windll.user32.GetAsyncKeyState(vk)
+                if not (state & 0x8000):
+                    all_pressed = False
+                    break
                     
-                hk = set(str(k).lower() for k in self.config.get("hotkey", ["q", "w", "e"]))
-                if hk and hk.issubset(self._pressed_keys):
-                    if not self._hotkey_triggered:
-                        self._hotkey_triggered = True
-                        on_activate()
-            except Exception as e:
-                pass
-
-        def on_release(key):
-            try:
-                if key in _CTRL: self._ctrl_held = False
-                elif key in _SHIFT: self._shift_held = False
-                
-                k_name = get_key_name(key)
-                if k_name and k_name in self._pressed_keys:
-                    self._pressed_keys.remove(k_name)
-                    
-                hk = set(str(k).lower() for k in self.config.get("hotkey", ["q", "w", "e"]))
-                if not hk.issubset(self._pressed_keys):
-                    self._hotkey_triggered = False
-            except Exception as e:
-                pass
-
-        self._kb = keyboard.Listener(
-            on_press=on_press, on_release=on_release, daemon=True)
-        self._kb.start()
+            if all_pressed:
+                if not triggered:
+                    triggered = True
+                    self.root.after(0, self.magnifier.toggle)
+            else:
+                triggered = False
 
     # ── mouse scroll listener ─────────────────────────────────────
 
@@ -133,10 +120,14 @@ class LupaApp:
             if not self.magnifier.active:
                 return
             direction = 1 if dy > 0 else -1
-            if self._ctrl_held:
+            import ctypes
+            ctrl_held = bool(ctypes.windll.user32.GetAsyncKeyState(0x11) & 0x8000)
+            shift_held = bool(ctypes.windll.user32.GetAsyncKeyState(0x10) & 0x8000)
+            
+            if ctrl_held:
                 delta = direction * 0.08
                 self.root.after(0, lambda d=delta: self.magnifier.brightness_delta(d))
-            elif self._shift_held:
+            elif shift_held:
                 delta = direction * 0.08
                 self.root.after(0, lambda d=delta: self.magnifier.contrast_delta(d))
             else:
@@ -190,16 +181,12 @@ class LupaApp:
             self.config.update(dlg.result)
             save_config(self.config)
             self.magnifier.update_config(self.config)
-            # Restart hotkey listeners with the new combo
-            try:
-                self._kb.stop()
-            except Exception:
-                pass
-            self._start_kb_listener()
+            # Polling loop automatically picks up new config without restart
 
     # ── quit ──────────────────────────────────────────────────────
 
     def _quit(self):
+        self._polling_active = False
         self.magnifier.destroy()
         try:
             self._tray.stop()
