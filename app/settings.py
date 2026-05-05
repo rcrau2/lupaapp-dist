@@ -1,6 +1,9 @@
 import json
 import tkinter as tk
 from tkinter import ttk, messagebox
+import sys
+import os
+import winreg
 from pathlib import Path
 
 CONFIG_FILE = Path.home() / ".magnifier_lupa" / "config.json"
@@ -11,6 +14,7 @@ DEFAULT = {
     "brightness": 1.0,
     "contrast": 1.0,
     "lens_size": 220,
+    "startup": False,
 }
 
 MODIFIERS = ["ctrl", "shift", "alt"]
@@ -39,6 +43,28 @@ ACCENT = "#89b4fa"
 MUTED = "#6c7086"
 SURFACE = "#313244"
 
+def set_run_on_startup(enable: bool):
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    app_name = "LupaApp"
+    
+    exe_path = sys.executable
+    if not getattr(sys, 'frozen', False):
+        exe_path = f'"{sys.executable}" "{os.path.abspath(sys.argv[0])}"'
+    else:
+        exe_path = f'"{exe_path}"'
+        
+    try:
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_ALL_ACCESS)
+        if enable:
+            winreg.SetValueEx(key, app_name, 0, winreg.REG_SZ, exe_path)
+        else:
+            try:
+                winreg.DeleteValue(key, app_name)
+            except FileNotFoundError:
+                pass
+        winreg.CloseKey(key)
+    except Exception as e:
+        print(f"Error setting startup registry key: {e}")
 
 class SettingsDialog:
     def __init__(self, parent, config):
@@ -47,7 +73,7 @@ class SettingsDialog:
 
         self.win = tk.Toplevel(parent)
         self.win.title("Configuración – Lupa de Pantalla")
-        self.win.geometry("460x540")
+        self.win.geometry("460x570")
         self.win.resizable(False, False)
         self.win.configure(bg=BG)
         self.win.grab_set()
@@ -70,6 +96,7 @@ class SettingsDialog:
 
         self._build_hotkey_section()
         self._build_sliders_section()
+        self._build_system_section()
         self._build_controls_hint()
         self._build_buttons()
 
@@ -112,6 +139,16 @@ class SettingsDialog:
         self._slider(frame, "Contraste inicial:", self._con_var, 0.2, 3.0, 0.05)
         self._slider(frame, "Tamaño de lupa (px):", self._size_var, 120, 400, 10)
 
+    def _build_system_section(self):
+        frame = self._lframe("Sistema")
+        self._startup_var = tk.BooleanVar(value=self._cfg.get("startup", False))
+        cb = tk.Checkbutton(
+            frame, text="Iniciar LupaApp automáticamente con Windows (en la bandeja del sistema)",
+            variable=self._startup_var, bg=BG, fg=FG, selectcolor=SURFACE, 
+            activebackground=BG, activeforeground=FG, font=("Segoe UI", 9)
+        )
+        cb.pack(anchor="w", padx=10, pady=5)
+
     def _slider(self, parent, label, var, from_, to, res):
         row = tk.Frame(parent, bg=BG)
         row.pack(fill="x", padx=12, pady=3)
@@ -148,10 +185,13 @@ class SettingsDialog:
     # ── save ──────────────────────────────────────────────────────
 
     def _save(self):
+        startup_val = self._startup_var.get()
         self.result = {
             "zoom": round(float(self._zoom_var.get()), 2),
             "brightness": round(float(self._bri_var.get()), 2),
             "contrast": round(float(self._con_var.get()), 2),
             "lens_size": int(self._size_var.get()),
+            "startup": startup_val,
         }
+        set_run_on_startup(startup_val)
         self.win.destroy()

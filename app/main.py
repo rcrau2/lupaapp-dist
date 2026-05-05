@@ -35,12 +35,12 @@ class FloatingDashboard:
         self.win = tk.Toplevel(self.root)
         self.win.overrideredirect(True)
         self.win.attributes('-topmost', True)
-        self.win.attributes('-alpha', 0.8)
+        self.win.attributes('-alpha', 0.5)
         self.win.configure(bg="#1a1a24")
         
         # Dimensions
         self.w = 65
-        self.h = 420
+        self.h = 470
         screen_width = self.root.winfo_screenwidth()
         screen_height = self.root.winfo_screenheight()
         self.win.geometry(f"{self.w}x{self.h}+{screen_width - self.w - 20}+{screen_height//2 - self.h//2}")
@@ -62,8 +62,12 @@ class FloatingDashboard:
         
         self.canvas.bind("<ButtonPress-1>", self._on_press)
         self.canvas.bind("<B1-Motion>", self._on_drag)
-        self.canvas.bind("<Enter>", lambda e: self.win.attributes('-alpha', 1.0))
-        self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.8))
+        self.canvas.bind("<Enter>", lambda e: self.win.attributes('-alpha', 0.85))
+        self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.5))
+        
+        # Draw Close App button
+        self.close_btn_bg = self.canvas.create_rectangle(12, 410, 53, 450, fill="", outline="#ff4444", width=2)
+        self.close_btn_txt = self.canvas.create_text(32, 430, text="CERRAR\n APP", fill="#ff4444", font=("Segoe UI", 7, "bold"), justify="center")
         
         self._drag_data = {"x": 0, "y": 0, "active_slider": None, "moved": False}
         
@@ -107,6 +111,11 @@ class FloatingDashboard:
         if event.y < 70:
             # Clicked power button area
             self.toggle_callback()
+            return
+            
+        if event.y > 400:
+            # Clicked close button area
+            self.app._quit()
             return
             
         # Check sliders
