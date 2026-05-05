@@ -65,11 +65,18 @@ class FloatingDashboard:
         self.canvas.bind("<Enter>", lambda e: self.win.attributes('-alpha', 0.85))
         self.canvas.bind("<Leave>", lambda e: self.win.attributes('-alpha', 0.5))
         
-        # Draw Close App button
-        self.close_btn_bg = self.canvas.create_rectangle(12, 410, 53, 450, fill="", outline="#ff4444", width=2)
-        self.close_btn_txt = self.canvas.create_text(32, 430, text="CERRAR\n APP", fill="#ff4444", font=("Segoe UI", 7, "bold"), justify="center")
+        # Draw Close App button (Professional Rounded Design)
+        self._draw_round_rect(self.canvas, 10, 415, 55, 445, radius=12, fill="", outline="#cba6f7", width=2)
+        self.close_btn_txt = self.canvas.create_text(32, 430, text="Cerrar", fill="#cba6f7", font=("Segoe UI", 9, "bold"), justify="center")
         
         self._drag_data = {"x": 0, "y": 0, "active_slider": None, "moved": False}
+        
+    def _draw_round_rect(self, canvas, x1, y1, x2, y2, radius=10, **kwargs):
+        points = [x1+radius, y1, x1+radius, y1, x2-radius, y1, x2-radius, y1,
+                  x2, y1, x2, y1+radius, x2, y1+radius, x2, y2-radius, x2, y2-radius,
+                  x2, y2, x2-radius, y2, x2-radius, y2, x1+radius, y2, x1+radius, y2,
+                  x1, y2, x1, y2-radius, x1, y2-radius, x1, y1+radius, x1, y1+radius, x1, y1]
+        return canvas.create_polygon(points, smooth=True, **kwargs)
         
     def _add_slider(self, y, label, max_val, min_val, current_val, callback):
         # Draw rail
@@ -115,7 +122,7 @@ class FloatingDashboard:
             
         if event.y > 400:
             # Clicked close button area
-            self.app._quit()
+            self.app.hide_to_tray()
             return
             
         # Check sliders
@@ -216,14 +223,24 @@ class LupaApp:
             Item("Alternar lupa (Boton Flotante)", self._tray_toggle, default=True),
             Item("Configuración…",            self._tray_settings),
             Menu.SEPARATOR,
-            Item("Salir",                     self._tray_quit),
+            Item("Salir Completamente",       self._tray_quit),
         )
         self._tray = pystray.Icon("LupaApp", self._make_tray_icon(),
                                   "Lupa de Pantalla", menu)
         threading.Thread(target=self._tray.run, daemon=True).start()
 
+    def hide_to_tray(self):
+        self.magnifier.hide()
+        self.floating_dashboard.win.withdraw()
+
+    def toggle_dashboard(self):
+        if self.floating_dashboard.win.state() == "withdrawn":
+            self.floating_dashboard.win.deiconify()
+        else:
+            self.hide_to_tray()
+
     def _tray_toggle(self, icon, item):
-        self.root.after(0, self.magnifier.toggle)
+        self.root.after(0, self.toggle_dashboard)
 
     def _tray_settings(self, icon, item):
         self.root.after(0, self._open_settings)
